@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xmlns:context="http://www.springframework.org/schema/context"
+       xmlns:aop="http://www.springframework.org/schema/aop"
+       xmlns:tx="http://www.springframework.org/schema/tx"
+       xsi:schemaLocation="http://www.springframework.org/schema/beans
+	http://www.springframework.org/schema/beans/spring-beans.xsd
+	http://www.springframework.org/schema/context
+	http://www.springframework.org/schema/context/spring-context.xsd
+	http://www.springframework.org/schema/aop
+	http://www.springframework.org/schema/aop/spring-aop.xsd
+	http://www.springframework.org/schema/tx
+	http://www.springframework.org/schema/tx/spring-tx.xsd">
+
+    <!--配置要扫描的包-->
+    <context:component-scan base-package="cn.hjxu">
+        <!--这里我们目的是将service和dao的对象交给spring，而表现层的交给mvc管理，所以我们需要将mvc的注解给排除掉-->
+        <context:exclude-filter type="annotation" expression="org.springframework.stereotype.Controller"/>
+    </context:component-scan>
+
+    <!--加载druid的配置文件-->
+    <context:property-placeholder ignore-unresolvable="true" location="classpath:druid.properties"></context:property-placeholder>
+
+
+    <!--配置数据源，无论mybatis还是声明式的事务都用的到 这里使用阿里druid的连接池-->
+    <bean id="dataSource" class="com.alibaba.druid.pool.DruidDataSource">
+        <!--配置连接参数-->
+        <property name="driverClassName" value="${jdbc.driverName}" />
+        <property name="url" value="${jdbc.url}" />
+        <property name="username" value="${jdbc.username}" />
+        <property name="password" value="${jdbc.password}" />
+
+        <!--配置初始化参数-->
+        <property name="initialSize" value="${initialSize}" />
+        <!--配置最大连接数量-->
+        <property name="maxActive" value="${maxActive}" />
+        <!-- 获取连接最大等待时间 -->
+        <property name="maxWait" value="${maxWait}" />
+    </bean>
+
+
+    <!--配置sqlSession工厂类-->
+    <bean id="sqlSessionFactory" class="org.mybatis.spring.SqlSessionFactoryBean">
+        <property name="dataSource" ref="dataSource"></property>
+
+    </bean>
+
+    <!--配置dao接口所在的包-->
+    <bean id="mapperScanner" class="org.mybatis.spring.mapper.MapperScannerConfigurer">
+        <property name="basePackage" value="cn.hjxu.dao"></property>
+    </bean>
+
+
+    <!--配置声明式事务-->
+
+    <!--配置事务管理器-->
+    <bean id="dataSourceTransactionManager" class="org.springframework.jdbc.datasource.DataSourceTransactionManager">
+        <property name="dataSource" ref="dataSource"></property>
+    </bean>
+    <!--配置事务的通知-->
+    <tx:advice id="txAdvice" transaction-manager="dataSourceTransactionManager">
+        <tx:attributes>
+            <tx:method name="find*" read-only="true" propagation="SUPPORTS"/>
+            <tx:method name="*" read-only="false" propagation="REQUIRED"/>
+        </tx:attributes>
+    </tx:advice>
+
+    <!--配置通知与切入点表达式相关联-->
+    <aop:config>
+        <aop:pointcut id="pt1" expression="execution(* cn.hjxu.service.impl.*.*(..))"/>
+        <aop:advisor advice-ref="txAdvice" pointcut-ref="pt1"></aop:advisor>
+    </aop:config>
+</beans>
